@@ -1,0 +1,440 @@
+{
+  "info": {
+    "name": "Smart University API",
+    "description": "Complete API collection for Smart University Project Management Platform",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test User\",\n  \"email\": \"test@university.com\",\n  \"password\": \"test123\",\n  \"role\": \"student\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response.data && response.data.token) {",
+                  "    pm.collectionVariables.set('token', response.data.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"student1@university.com\",\n  \"password\": \"student123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "me"]
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "logout"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Projects",
+      "item": [
+        {
+          "name": "Get All Projects",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/projects",
+              "host": ["{{base_url}}"],
+              "path": ["api", "projects"]
+            }
+          }
+        },
+        {
+          "name": "Create Project",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"New Research Project\",\n  \"description\": \"This is a test project for API testing\",\n  \"tasks\": [\n    {\n      \"title\": \"Research Phase\",\n      \"description\": \"Complete initial research\",\n      \"deadline\": \"2025-12-31\",\n      \"progress\": 0,\n      \"status\": \"pending\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/projects",
+              "host": ["{{base_url}}"],
+              "path": ["api", "projects"]
+            }
+          }
+        },
+        {
+          "name": "Get Single Project",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/projects/:id",
+              "host": ["{{base_url}}"],
+              "path": ["api", "projects", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "PROJECT_ID_HERE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Project",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"submitted\",\n  \"grade\": 85,\n  \"feedback\": \"Great work!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/projects/:id",
+              "host": ["{{base_url}}"],
+              "path": ["api", "projects", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "PROJECT_ID_HERE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Project",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/projects/:id",
+              "host": ["{{base_url}}"],
+              "path": ["api", "projects", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "PROJECT_ID_HERE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Export Project XML",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/projects/:id/export-xml",
+              "host": ["{{base_url}}"],
+              "path": ["api", "projects", ":id", "export-xml"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "PROJECT_ID_HERE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Import Project XML",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"xml\": \"<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\\n<project>\\n  <title>Imported Project</title>\\n  <description>Project imported from XML</description>\\n  <status>draft</status>\\n  <tasks>\\n    <task>\\n      <title>Task 1</title>\\n      <description>First task</description>\\n      <deadline>2025-12-31</deadline>\\n      <progress>0</progress>\\n      <status>pending</status>\\n    </task>\\n  </tasks>\\n</project>\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/projects/import-xml",
+              "host": ["{{base_url}}"],
+              "path": ["api", "projects", "import-xml"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tasks",
+      "item": [
+        {
+          "name": "Get Tasks by Project",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/tasks/project/:projectId",
+              "host": ["{{base_url}}"],
+              "path": ["api", "tasks", "project", ":projectId"],
+              "variable": [
+                {
+                  "key": "projectId",
+                  "value": "PROJECT_ID_HERE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Task",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"New Task\",\n  \"description\": \"Task description\",\n  \"deadline\": \"2025-12-31\",\n  \"priority\": \"high\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/tasks/project/:projectId",
+              "host": ["{{base_url}}"],
+              "path": ["api", "tasks", "project", ":projectId"],
+              "variable": [
+                {
+                  "key": "projectId",
+                  "value": "PROJECT_ID_HERE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Task",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"progress\": 50,\n  \"status\": \"in_progress\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/tasks/:id",
+              "host": ["{{base_url}}"],
+              "path": ["api", "tasks", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "TASK_ID_HERE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Task",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/tasks/:id",
+              "host": ["{{base_url}}"],
+              "path": ["api", "tasks", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "TASK_ID_HERE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Overdue Tasks",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/tasks/overdue",
+              "host": ["{{base_url}}"],
+              "path": ["api", "tasks", "overdue"]
+            }
+          }
+        },
+        {
+          "name": "Mark Task Complete",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/tasks/:id/complete",
+              "host": ["{{base_url}}"],
+              "path": ["api", "tasks", ":id", "complete"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "TASK_ID_HERE"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
