@@ -1,24 +1,15 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import {
-  Container,
-  Paper,
-  TextField,
-  Button,
-  Typography,
-  Box,
-  Alert,
-  MenuItem,
-} from '@mui/material';
+import { Link } from 'react-router-dom';
 import api from '../api/axios';
+import './Auth.css';
 
-const Register = () => {
-  const navigate = useNavigate();
+const Register = ({ setUser }) => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
-    role: 'student',
+    confirmPassword: '',
+    role: 'student'
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -26,110 +17,142 @@ const Register = () => {
   const handleChange = (e) => {
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [e.target.name]: e.target.value
     });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    // Validation
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const response = await api.post('/auth/register', formData);
-      const { user, token, refreshToken } = response.data.data;
-
-      localStorage.setItem('token', token);
-      localStorage.setItem('refreshToken', refreshToken);
-      localStorage.setItem('user', JSON.stringify(user));
-
-      navigate('/dashboard');
+      const { confirmPassword, ...registerData } = formData;
+      const { data } = await api.post('/auth/register', registerData);
+      
+      // Store tokens and user data
+      localStorage.setItem('token', data.data.token);
+      localStorage.setItem('refreshToken', data.data.refreshToken);
+      localStorage.setItem('user', JSON.stringify(data.data.user));
+      
+      setUser(data.data.user);
     } catch (err) {
-      setError(err.response?.data?.message || 'Registration failed');
+      setError(err.response?.data?.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Container maxWidth="sm">
-      <Box sx={{ mt: 8, mb: 4 }}>
-        <Paper elevation={3} sx={{ p: 4 }}>
-          <Typography variant="h4" component="h1" gutterBottom align="center">
-            Register
-          </Typography>
+    <div className="auth-container">
+      <div className="auth-card">
+        <div className="auth-header">
+          <h1>🎓 Smart University</h1>
+          <h2>Create Account</h2>
+          <p>Sign up to get started</p>
+        </div>
 
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
+        <form onSubmit={handleSubmit} className="auth-form">
+          {error && <div className="alert-error">{error}</div>}
 
-          <Box component="form" onSubmit={handleSubmit} sx={{ mt: 3 }}>
-            <TextField
-              fullWidth
-              label="Full Name"
+          <div className="form-group">
+            <label htmlFor="name">Full Name</label>
+            <input
+              type="text"
+              id="name"
               name="name"
               value={formData.name}
               onChange={handleChange}
-              margin="normal"
+              placeholder="John Doe"
               required
+              autoComplete="name"
             />
-            <TextField
-              fullWidth
-              label="Email"
-              name="email"
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="email">Email Address</label>
+            <input
               type="email"
+              id="email"
+              name="email"
               value={formData.email}
               onChange={handleChange}
-              margin="normal"
+              placeholder="student@university.com"
               required
+              autoComplete="email"
             />
-            <TextField
-              fullWidth
-              label="Password"
-              name="password"
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="password">Password</label>
+            <input
               type="password"
+              id="password"
+              name="password"
               value={formData.password}
               onChange={handleChange}
-              margin="normal"
+              placeholder="At least 6 characters"
               required
-              helperText="Minimum 6 characters"
+              autoComplete="new-password"
             />
-            <TextField
-              fullWidth
-              select
-              label="Role"
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="confirmPassword">Confirm Password</label>
+            <input
+              type="password"
+              id="confirmPassword"
+              name="confirmPassword"
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              placeholder="Re-enter your password"
+              required
+              autoComplete="new-password"
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="role">I am a...</label>
+            <select
+              id="role"
               name="role"
               value={formData.role}
               onChange={handleChange}
-              margin="normal"
               required
             >
-              <MenuItem value="student">Student</MenuItem>
-              <MenuItem value="teacher">Teacher</MenuItem>
-              <MenuItem value="admin">Admin</MenuItem>
-            </TextField>
-            <Button
-              type="submit"
-              fullWidth
-              variant="contained"
-              sx={{ mt: 3, mb: 2 }}
-              disabled={loading}
-            >
-              {loading ? 'Registering...' : 'Register'}
-            </Button>
-            <Box sx={{ textAlign: 'center' }}>
-              <Link to="/login" style={{ textDecoration: 'none' }}>
-                <Typography color="primary">
-                  Already have an account? Login
-                </Typography>
-              </Link>
-            </Box>
-          </Box>
-        </Paper>
-      </Box>
-    </Container>
+              <option value="student">Student</option>
+              <option value="teacher">Teacher</option>
+            </select>
+          </div>
+
+          <button 
+            type="submit" 
+            className="btn-submit" 
+            disabled={loading}
+          >
+            {loading ? 'Creating Account...' : 'Create Account'}
+          </button>
+        </form>
+
+        <div className="auth-footer">
+          <p>
+            Already have an account? <Link to="/login">Sign In</Link>
+          </p>
+        </div>
+      </div>
+    </div>
   );
 };
 

@@ -7,33 +7,27 @@ const {
   updateProject,
   deleteProject,
   exportProjectXML,
-  importProjectXML
+  importProjectXML,
+  uploadFile,
+  downloadFile,
+  getProjectsByClassroom
 } = require('../controllers/projectController');
 const { protect, authorize } = require('../middleware/auth');
+const upload = require('../middleware/upload');
 
 const router = express.Router();
 
-// Validation middleware
 const projectValidation = [
   body('title').trim().notEmpty().withMessage('Title is required'),
   body('description').trim().notEmpty().withMessage('Description is required')
 ];
 
-// Import XML route (must be before /:id routes)
-router.post('/import-xml', protect, importProjectXML);
-
-// Main routes
-router.route('/')
-  .get(protect, getProjects)
-  .post(protect, projectValidation, createProject);
-
-// ID-specific routes
-router.route('/:id')
-  .get(protect, getProject)
-  .put(protect, updateProject)
-  .delete(protect, authorize('student', 'admin'), deleteProject);
-
-// Export XML route
+router.route('/').get(protect, getProjects).post(protect, authorize('teacher', 'admin'), projectValidation, createProject);
+router.post('/import-xml', protect, authorize('teacher', 'admin'), importProjectXML);
+router.get('/classroom/:classroom', protect, getProjectsByClassroom);
+router.post('/:id/upload', protect, upload.single('file'), uploadFile);
+router.get('/:id/files/:fileId', protect, downloadFile);
+router.route('/:id').get(protect, getProject).put(protect, updateProject).delete(protect, authorize('admin'), deleteProject);
 router.get('/:id/export-xml', protect, exportProjectXML);
 
 module.exports = router;

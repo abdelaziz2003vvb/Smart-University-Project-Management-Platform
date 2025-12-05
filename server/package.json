@@ -1,6 +1,6 @@
 {
   "name": "smart-university-server",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Smart University Project Management Platform - Backend",
   "main": "src/index.js",
   "scripts": {
@@ -21,7 +21,9 @@
     "express-validator": "^7.0.1",
     "xml2js": "^0.6.2",
     "helmet": "^7.1.0",
-    "morgan": "^1.10.0"
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1",
+    "path": "^0.12.7"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"

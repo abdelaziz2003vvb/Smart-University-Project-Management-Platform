@@ -12,7 +12,7 @@ const taskSchema = new mongoose.Schema({
   },
   projectId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Project',
+    ref: 'projects', // Assuming 'projects' is the model name for Project.js
     required: true
   },
   deadline: {
@@ -29,9 +29,10 @@ const taskSchema = new mongoose.Schema({
     enum: ['pending', 'in_progress', 'completed'],
     default: 'pending'
   },
+  // FIX 3: Change ref from 'User' to 'users' to match the registered model name.
   assignedTo: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
+    ref: 'users' 
   },
   priority: {
     type: String,
@@ -75,4 +76,4 @@ taskSchema.statics.getOverdueTasks = function() {
     .sort({ deadline: 1 });
 };
 
-module.exports = mongoose.model('Task', taskSchema);
+module.exports = mongoose.model('tasks', taskSchema);

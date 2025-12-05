@@ -1,290 +1,294 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Container,
-  Typography,
-  Box,
-  Button,
-  Card,
-  CardContent,
-  CardActions,
-  Grid,
-  Chip,
-  AppBar,
-  Toolbar,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Alert,
-  IconButton,
-  Menu,
-  MenuItem,
-} from '@mui/material';
-import {
-  Add as AddIcon,
-  Logout as LogoutIcon,
-  FileDownload as DownloadIcon,
-  Upload as UploadIcon,
-  AccountCircle,
-} from '@mui/icons-material';
 import api from '../api/axios';
+import './Dashboard.css';
 
-const Dashboard = () => {
+const Dashboard = ({ user, onLogout }) => {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
   const [projects, setProjects] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [openDialog, setOpenDialog] = useState(false);
-  const [openXmlDialog, setOpenXmlDialog] = useState(false);
-  const [xmlData, setXmlData] = useState('');
   const [error, setError] = useState('');
-  const [anchorEl, setAnchorEl] = useState(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [newProject, setNewProject] = useState({
     title: '',
     description: '',
+    classroom: '',
+    studentId: ''
   });
 
   useEffect(() => {
-    const userData = JSON.parse(localStorage.getItem('user'));
-    setUser(userData);
     fetchProjects();
-  }, []);
+    if (user?.role === 'teacher' || user?.role === 'admin') {
+      fetchStudents();
+    }
+  }, [user]);
 
   const fetchProjects = async () => {
     try {
-      const response = await api.get('/projects');
-      setProjects(response.data.data);
+      const { data } = await api.get('/projects');
+      setProjects(data.data);
+      setLoading(false);
     } catch (err) {
-      setError('Failed to fetch projects');
-    } finally {
+      setError(err.response?.data?.message || 'Failed to fetch projects');
       setLoading(false);
     }
   };
 
-  const handleLogout = () => {
-    localStorage.clear();
-    navigate('/login');
+  const fetchStudents = async () => {
+    try {
+      const { data } = await api.get('/users/students');
+      setUsers(data.data);
+    } catch (err) {
+      console.error('Failed to fetch students:', err);
+    }
   };
 
-  const handleCreateProject = async () => {
+  const handleCreateProject = async (e) => {
+    e.preventDefault();
     try {
       await api.post('/projects', newProject);
-      setOpenDialog(false);
-      setNewProject({ title: '', description: '' });
+      setShowCreateModal(false);
+      setNewProject({ title: '', description: '', classroom: '', studentId: '' });
       fetchProjects();
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to create project');
+      alert(err.response?.data?.message || 'Failed to create project');
     }
   };
 
-  const handleImportXML = async () => {
+  const handleDeleteProject = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this project?')) return;
+    
     try {
-      await api.post('/projects/import-xml', { xml: xmlData });
-      setOpenXmlDialog(false);
-      setXmlData('');
+      await api.delete(`/projects/${id}`);
       fetchProjects();
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to import XML');
-    }
-  };
-
-  const handleExportXML = async (projectId) => {
-    try {
-      const response = await api.get(`/projects/${projectId}/export-xml`, {
-        responseType: 'blob',
-      });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `project-${projectId}.xml`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    } catch (err) {
-      setError('Failed to export XML');
+      alert(err.response?.data?.message || 'Failed to delete project');
     }
   };
 
   const getStatusColor = (status) => {
     const colors = {
-      draft: 'default',
-      submitted: 'primary',
-      in_review: 'warning',
-      approved: 'success',
-      rejected: 'error',
+      draft: '#6c757d',
+      assigned: '#17a2b8',
+      submitted: '#ffc107',
+      in_review: '#fd7e14',
+      approved: '#28a745',
+      rejected: '#dc3545'
     };
-    return colors[status] || 'default';
+    return colors[status] || '#6c757d';
   };
 
+  const getStatusBadge = (status) => (
+    <span className="status-badge" style={{ backgroundColor: getStatusColor(status) }}>
+      {status.replace('_', ' ').toUpperCase()}
+    </span>
+  );
+
+  if (loading) {
+    return (
+      <div className="dashboard-container">
+        <div className="loading">Loading projects...</div>
+      </div>
+    );
+  }
+
   return (
-    <>
-      <AppBar position="static">
-        <Toolbar>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            Smart University - {user?.role?.toUpperCase()} Dashboard
-          </Typography>
-          <IconButton color="inherit" onClick={(e) => setAnchorEl(e.currentTarget)}>
-            <AccountCircle />
-          </IconButton>
-          <Menu
-            anchorEl={anchorEl}
-            open={Boolean(anchorEl)}
-            onClose={() => setAnchorEl(null)}
-          >
-            <MenuItem disabled>
-              <Typography>{user?.name}</Typography>
-            </MenuItem>
-            <MenuItem disabled>
-              <Typography variant="body2">{user?.email}</Typography>
-            </MenuItem>
-            <MenuItem onClick={handleLogout}>
-              <LogoutIcon sx={{ mr: 1 }} /> Logout
-            </MenuItem>
-          </Menu>
-        </Toolbar>
-      </AppBar>
+    <div className="dashboard-container">
+      {/* Header */}
+      <header className="dashboard-header">
+        <div className="header-content">
+          <h1>🎓 Smart University Platform</h1>
+          <div className="user-info">
+            <span className="user-name">{user?.name}</span>
+            <span className="user-role">{user?.role}</span>
+            <button onClick={onLogout} className="btn-logout">Logout</button>
+          </div>
+        </div>
+      </header>
 
-      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
-            {error}
-          </Alert>
-        )}
-
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-          <Typography variant="h4">My Projects</Typography>
-          <Box>
-            <Button
-              variant="outlined"
-              startIcon={<UploadIcon />}
-              onClick={() => setOpenXmlDialog(true)}
-              sx={{ mr: 1 }}
+      {/* Main Content */}
+      <main className="dashboard-main">
+        <div className="dashboard-actions">
+          <h2>Projects Dashboard</h2>
+          {(user?.role === 'teacher' || user?.role === 'admin') && (
+            <button 
+              onClick={() => setShowCreateModal(true)} 
+              className="btn-primary"
             >
-              Import XML
-            </Button>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => setOpenDialog(true)}
-            >
-              New Project
-            </Button>
-          </Box>
-        </Box>
+              + Create New Project
+            </button>
+          )}
+        </div>
 
-        {loading ? (
-          <Typography>Loading...</Typography>
-        ) : projects.length === 0 ? (
-          <Typography>No projects found. Create your first project!</Typography>
-        ) : (
-          <Grid container spacing={3}>
-            {projects.map((project) => (
-              <Grid item xs={12} md={6} lg={4} key={project._id}>
-                <Card>
-                  <CardContent>
-                    <Typography variant="h6" gutterBottom>
-                      {project.title}
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{ mb: 2 }}
-                    >
-                      {project.description.substring(0, 100)}...
-                    </Typography>
-                    <Chip
-                      label={project.status.replace('_', ' ').toUpperCase()}
-                      color={getStatusColor(project.status)}
-                      size="small"
-                    />
-                    {project.grade && (
-                      <Chip
-                        label={`Grade: ${project.grade}`}
-                        color="success"
-                        size="small"
-                        sx={{ ml: 1 }}
-                      />
+        {error && <div className="alert alert-error">{error}</div>}
+
+        {/* Statistics Cards */}
+        <div className="stats-grid">
+          <div className="stat-card">
+            <h3>Total Projects</h3>
+            <p className="stat-number">{projects.length}</p>
+          </div>
+          <div className="stat-card">
+            <h3>In Progress</h3>
+            <p className="stat-number">
+              {projects.filter(p => p.status === 'assigned' || p.status === 'draft').length}
+            </p>
+          </div>
+          <div className="stat-card">
+            <h3>Submitted</h3>
+            <p className="stat-number">
+              {projects.filter(p => p.status === 'submitted').length}
+            </p>
+          </div>
+          <div className="stat-card">
+            <h3>Approved</h3>
+            <p className="stat-number">
+              {projects.filter(p => p.status === 'approved').length}
+            </p>
+          </div>
+        </div>
+
+        {/* Projects List */}
+        <div className="projects-list">
+          {projects.length === 0 ? (
+            <div className="empty-state">
+              <p>No projects found. {(user?.role === 'teacher' || user?.role === 'admin') && 'Create your first project!'}</p>
+            </div>
+          ) : (
+            <div className="projects-grid">
+              {projects.map((project) => (
+                <div key={project._id} className="project-card">
+                  <div className="project-header">
+                    <h3>{project.title}</h3>
+                    {getStatusBadge(project.status)}
+                  </div>
+                  
+                  <p className="project-description">{project.description}</p>
+                  
+                  <div className="project-meta">
+                    {project.classroom && (
+                      <div className="meta-item">
+                        <strong>Classroom:</strong> {project.classroom}
+                      </div>
                     )}
-                  </CardContent>
-                  <CardActions>
-                    <Button
-                      size="small"
+                    {project.studentId && (
+                      <div className="meta-item">
+                        <strong>Student:</strong> {project.studentId.name}
+                      </div>
+                    )}
+                    {project.teacherId && (
+                      <div className="meta-item">
+                        <strong>Teacher:</strong> {project.teacherId.name}
+                      </div>
+                    )}
+                    {project.grade !== undefined && project.grade !== null && (
+                      <div className="meta-item">
+                        <strong>Grade:</strong> {project.grade}/100
+                      </div>
+                    )}
+                  </div>
+
+                  {project.tasks && project.tasks.length > 0 && (
+                    <div className="project-tasks">
+                      <strong>Tasks:</strong> {project.tasks.length} 
+                      <span className="tasks-completed">
+                        ({project.tasks.filter(t => t.status === 'completed').length} completed)
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="project-actions">
+                    <button 
                       onClick={() => navigate(`/projects/${project._id}`)}
+                      className="btn-view"
                     >
                       View Details
-                    </Button>
-                    <IconButton
-                      size="small"
-                      onClick={() => handleExportXML(project._id)}
-                    >
-                      <DownloadIcon />
-                    </IconButton>
-                  </CardActions>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
-        )}
-      </Container>
+                    </button>
+                    {user?.role === 'admin' && (
+                      <button 
+                        onClick={() => handleDeleteProject(project._id)}
+                        className="btn-delete"
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </main>
 
-      {/* Create Project Dialog */}
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Create New Project</DialogTitle>
-        <DialogContent>
-          <TextField
-            fullWidth
-            label="Project Title"
-            value={newProject.title}
-            onChange={(e) =>
-              setNewProject({ ...newProject, title: e.target.value })
-            }
-            margin="normal"
-          />
-          <TextField
-            fullWidth
-            label="Description"
-            value={newProject.description}
-            onChange={(e) =>
-              setNewProject({ ...newProject, description: e.target.value })
-            }
-            margin="normal"
-            multiline
-            rows={4}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-          <Button onClick={handleCreateProject} variant="contained">
-            Create
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* Create Project Modal */}
+      {showCreateModal && (
+        <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Create New Project</h2>
+              <button onClick={() => setShowCreateModal(false)} className="btn-close">×</button>
+            </div>
+            
+            <form onSubmit={handleCreateProject}>
+              <div className="form-group">
+                <label>Title *</label>
+                <input
+                  type="text"
+                  value={newProject.title}
+                  onChange={(e) => setNewProject({ ...newProject, title: e.target.value })}
+                  required
+                />
+              </div>
 
-      {/* Import XML Dialog */}
-      <Dialog open={openXmlDialog} onClose={() => setOpenXmlDialog(false)} maxWidth="md" fullWidth>
-        <DialogTitle>Import Project from XML</DialogTitle>
-        <DialogContent>
-          <TextField
-            fullWidth
-            label="Paste XML Content"
-            value={xmlData}
-            onChange={(e) => setXmlData(e.target.value)}
-            margin="normal"
-            multiline
-            rows={10}
-            placeholder="<project>...</project>"
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenXmlDialog(false)}>Cancel</Button>
-          <Button onClick={handleImportXML} variant="contained">
-            Import
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </>
+              <div className="form-group">
+                <label>Description *</label>
+                <textarea
+                  value={newProject.description}
+                  onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
+                  required
+                  rows="4"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Classroom</label>
+                <input
+                  type="text"
+                  value={newProject.classroom}
+                  onChange={(e) => setNewProject({ ...newProject, classroom: e.target.value })}
+                  placeholder="e.g., CS401"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Assign to Student</label>
+                <select
+                  value={newProject.studentId}
+                  onChange={(e) => setNewProject({ ...newProject, studentId: e.target.value })}
+                >
+                  <option value="">-- Select Student (Optional) --</option>
+                  {users.map((student) => (
+                    <option key={student._id} value={student._id}>
+                      {student.name} ({student.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="modal-actions">
+                <button type="button" onClick={() => setShowCreateModal(false)} className="btn-secondary">
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary">
+                  Create Project
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 

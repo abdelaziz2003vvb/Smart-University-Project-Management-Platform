@@ -1,391 +1,492 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import {
-  Container,
-  Typography,
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Grid,
-  Chip,
-  LinearProgress,
-  AppBar,
-  Toolbar,
-  IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  MenuItem,
-  Alert,
-} from '@mui/material';
-import {
-  ArrowBack,
-  Edit as EditIcon,
-  Add as AddIcon,
-  Delete as DeleteIcon,
-} from '@mui/icons-material';
 import api from '../api/axios';
+import './ProjectPage.css';
 
-const ProjectPage = () => {
+const ProjectPage = ({ user, onLogout }) => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [project, setProject] = useState(null);
-  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [openTaskDialog, setOpenTaskDialog] = useState(false);
-  const [openEditDialog, setOpenEditDialog] = useState(false);
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [showGradeModal, setShowGradeModal] = useState(false);
+  const [uploadFile, setUploadFile] = useState(null);
   const [newTask, setNewTask] = useState({
     title: '',
     description: '',
     deadline: '',
-    progress: 0,
-    status: 'pending',
+    status: 'pending'
   });
-  const [editData, setEditData] = useState({
-    status: '',
+  const [gradeData, setGradeData] = useState({
     grade: '',
-    feedback: '',
+    feedback: ''
   });
 
   useEffect(() => {
-    const userData = JSON.parse(localStorage.getItem('user'));
-    setUser(userData);
     fetchProject();
   }, [id]);
 
   const fetchProject = async () => {
     try {
-      const response = await api.get(`/projects/${id}`);
-      setProject(response.data.data);
-      setEditData({
-        status: response.data.data.status,
-        grade: response.data.data.grade || '',
-        feedback: response.data.data.feedback || '',
-      });
+      const { data } = await api.get(`/projects/${id}`);
+      setProject(data.data);
+      if (data.data.grade) {
+        setGradeData({
+          grade: data.data.grade,
+          feedback: data.data.feedback || ''
+        });
+      }
+      setLoading(false);
     } catch (err) {
-      setError('Failed to fetch project');
-    } finally {
+      setError(err.response?.data?.message || 'Failed to fetch project');
       setLoading(false);
     }
   };
 
-  const handleAddTask = async () => {
+  const handleAddTask = async (e) => {
+    e.preventDefault();
     try {
-      const updatedTasks = [...project.tasks, newTask];
+      const updatedTasks = [...(project.tasks || []), newTask];
       await api.put(`/projects/${id}`, { tasks: updatedTasks });
-      setOpenTaskDialog(false);
-      setNewTask({
-        title: '',
-        description: '',
-        deadline: '',
-        progress: 0,
-        status: 'pending',
-      });
+      setShowTaskModal(false);
+      setNewTask({ title: '', description: '', deadline: '', status: 'pending' });
       fetchProject();
     } catch (err) {
-      setError('Failed to add task');
+      alert(err.response?.data?.message || 'Failed to add task');
     }
   };
 
-  const handleUpdateProject = async () => {
+  const handleUpdateTaskStatus = async (taskIndex, newStatus) => {
     try {
-      await api.put(`/projects/${id}`, editData);
-      setOpenEditDialog(false);
+      const updatedTasks = [...project.tasks];
+      updatedTasks[taskIndex].status = newStatus;
+      if (newStatus === 'completed') {
+        updatedTasks[taskIndex].progress = 100;
+      }
+      await api.put(`/projects/${id}`, { tasks: updatedTasks });
       fetchProject();
     } catch (err) {
-      setError('Failed to update project');
+      alert(err.response?.data?.message || 'Failed to update task');
     }
   };
 
-  const handleDeleteProject = async () => {
-    if (window.confirm('Are you sure you want to delete this project?')) {
-      try {
-        await api.delete(`/projects/${id}`);
-        navigate('/dashboard');
-      } catch (err) {
-        setError('Failed to delete project');
-      }
+  const handleUpdateTaskProgress = async (taskIndex, progress) => {
+    try {
+      const updatedTasks = [...project.tasks];
+      updatedTasks[taskIndex].progress = parseInt(progress);
+      await api.put(`/projects/${id}`, { tasks: updatedTasks });
+      fetchProject();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to update progress');
+    }
+  };
+
+  const handleSubmitProject = async () => {
+    if (!window.confirm('Are you sure you want to submit this project?')) return;
+    
+    try {
+      await api.put(`/projects/${id}`, { status: 'submitted' });
+      fetchProject();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to submit project');
+    }
+  };
+
+  const handleGradeProject = async (e) => {
+    e.preventDefault();
+    try {
+      await api.put(`/projects/${id}`, {
+        grade: parseInt(gradeData.grade),
+        feedback: gradeData.feedback,
+        status: 'in_review'
+      });
+      setShowGradeModal(false);
+      fetchProject();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to grade project');
+    }
+  };
+
+  const handleApproveProject = async () => {
+    try {
+      await api.put(`/projects/${id}`, { status: 'approved' });
+      fetchProject();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to approve project');
+    }
+  };
+
+  const handleFileUpload = async (e) => {
+    e.preventDefault();
+    if (!uploadFile) {
+      alert('Please select a file');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', uploadFile);
+
+    try {
+      await api.post(`/projects/${id}/upload`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setUploadFile(null);
+      fetchProject();
+      alert('File uploaded successfully');
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to upload file');
+    }
+  };
+
+  const handleExportXML = async () => {
+    try {
+      const response = await api.get(`/projects/${id}/export-xml`, {
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `project-${id}.xml`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      alert('Failed to export XML');
     }
   };
 
   const getStatusColor = (status) => {
     const colors = {
-      draft: 'default',
-      pending: 'default',
-      submitted: 'primary',
-      in_progress: 'info',
-      in_review: 'warning',
-      approved: 'success',
-      completed: 'success',
-      rejected: 'error',
+      draft: '#6c757d',
+      assigned: '#17a2b8',
+      submitted: '#ffc107',
+      in_review: '#fd7e14',
+      approved: '#28a745',
+      rejected: '#dc3545',
+      pending: '#6c757d',
+      in_progress: '#17a2b8',
+      completed: '#28a745'
     };
-    return colors[status] || 'default';
+    return colors[status] || '#6c757d';
   };
 
-  if (loading) return <Typography>Loading...</Typography>;
-  if (!project) return <Typography>Project not found</Typography>;
+  if (loading) return <div className="loading">Loading project...</div>;
+  if (error) return <div className="error">{error}</div>;
+  if (!project) return <div className="error">Project not found</div>;
+
+  const isStudent = user?.role === 'student';
+  const isTeacher = user?.role === 'teacher' || user?.role === 'admin';
+  const canEdit = isStudent && (project.status === 'draft' || project.status === 'assigned');
 
   return (
-    <>
-      <AppBar position="static">
-        <Toolbar>
-          <IconButton color="inherit" onClick={() => navigate('/dashboard')}>
-            <ArrowBack />
-          </IconButton>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            Project Details
-          </Typography>
-        </Toolbar>
-      </AppBar>
+    <div className="project-page">
+      {/* Header */}
+      <header className="project-header">
+        <div className="header-content">
+          <button onClick={() => navigate('/dashboard')} className="btn-back">
+            ← Back to Dashboard
+          </button>
+          <div className="user-info">
+            <span className="user-name">{user?.name}</span>
+            <button onClick={onLogout} className="btn-logout">Logout</button>
+          </div>
+        </div>
+      </header>
 
-      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
-            {error}
-          </Alert>
-        )}
-
-        <Box sx={{ mb: 3 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-            <Typography variant="h4">{project.title}</Typography>
-            <Box>
-              {(user?.role === 'teacher' || user?.role === 'admin') && (
-                <Button
-                  variant="outlined"
-                  startIcon={<EditIcon />}
-                  onClick={() => setOpenEditDialog(true)}
-                  sx={{ mr: 1 }}
-                >
-                  Edit
-                </Button>
-              )}
-              {(user?.role === 'student' || user?.role === 'admin') && (
-                <Button
-                  variant="outlined"
-                  color="error"
-                  startIcon={<DeleteIcon />}
-                  onClick={handleDeleteProject}
-                >
-                  Delete
-                </Button>
-              )}
-            </Box>
-          </Box>
-
-          <Typography variant="body1" paragraph>
-            {project.description}
-          </Typography>
-
-          <Box sx={{ mb: 2 }}>
-            <Chip
-              label={project.status.replace('_', ' ').toUpperCase()}
-              color={getStatusColor(project.status)}
-              sx={{ mr: 1 }}
-            />
-            {project.grade && (
-              <Chip label={`Grade: ${project.grade}/100`} color="success" />
+      {/* Project Details */}
+      <main className="project-main">
+        <div className="project-title-section">
+          <div>
+            <h1>{project.title}</h1>
+            <span 
+              className="status-badge" 
+              style={{ backgroundColor: getStatusColor(project.status) }}
+            >
+              {project.status.replace('_', ' ').toUpperCase()}
+            </span>
+          </div>
+          <div className="project-actions-top">
+            <button onClick={handleExportXML} className="btn-secondary">
+              Export XML
+            </button>
+            {isTeacher && (
+              <button onClick={() => setShowGradeModal(true)} className="btn-primary">
+                Grade Project
+              </button>
             )}
-          </Box>
-
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
-              <Typography variant="body2" color="text.secondary">
-                <strong>Student:</strong> {project.studentId?.name}
-              </Typography>
-            </Grid>
-            {project.teacherId && (
-              <Grid item xs={12} md={6}>
-                <Typography variant="body2" color="text.secondary">
-                  <strong>Teacher:</strong> {project.teacherId?.name}
-                </Typography>
-              </Grid>
+            {canEdit && (
+              <button onClick={handleSubmitProject} className="btn-success">
+                Submit Project
+              </button>
             )}
-          </Grid>
+          </div>
+        </div>
+
+        {/* Project Info Grid */}
+        <div className="info-grid">
+          <div className="info-card">
+            <h3>Description</h3>
+            <p>{project.description}</p>
+          </div>
+
+          <div className="info-card">
+            <h3>Project Details</h3>
+            <div className="detail-row">
+              <strong>Classroom:</strong>
+              <span>{project.classroom || 'N/A'}</span>
+            </div>
+            <div className="detail-row">
+              <strong>Student:</strong>
+              <span>{project.studentId?.name || 'Unassigned'}</span>
+            </div>
+            <div className="detail-row">
+              <strong>Teacher:</strong>
+              <span>{project.teacherId?.name || 'N/A'}</span>
+            </div>
+            {project.grade !== undefined && project.grade !== null && (
+              <div className="detail-row">
+                <strong>Grade:</strong>
+                <span className="grade-display">{project.grade}/100</span>
+              </div>
+            )}
+            {project.submittedAt && (
+              <div className="detail-row">
+                <strong>Submitted:</strong>
+                <span>{new Date(project.submittedAt).toLocaleDateString()}</span>
+              </div>
+            )}
+          </div>
 
           {project.feedback && (
-            <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
-              <Typography variant="subtitle2" gutterBottom>
-                Feedback:
-              </Typography>
-              <Typography variant="body2">{project.feedback}</Typography>
-            </Box>
+            <div className="info-card feedback-card">
+              <h3>Teacher Feedback</h3>
+              <p>{project.feedback}</p>
+            </div>
           )}
-        </Box>
+        </div>
 
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-          <Typography variant="h5">Tasks</Typography>
-          {user?.role === 'student' && (
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => setOpenTaskDialog(true)}
-            >
-              Add Task
-            </Button>
-          )}
-        </Box>
+        {/* Tasks Section */}
+        <div className="tasks-section">
+          <div className="section-header">
+            <h2>Tasks ({project.tasks?.length || 0})</h2>
+            {canEdit && (
+              <button onClick={() => setShowTaskModal(true)} className="btn-primary">
+                + Add Task
+              </button>
+            )}
+          </div>
 
-        <Grid container spacing={2}>
-          {project.tasks?.map((task, index) => (
-            <Grid item xs={12} key={index}>
-              <Card>
-                <CardContent>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="h6">{task.title}</Typography>
-                    <Chip
-                      label={task.status.replace('_', ' ').toUpperCase()}
-                      color={getStatusColor(task.status)}
-                      size="small"
-                    />
-                  </Box>
-                  <Typography variant="body2" color="text.secondary" paragraph>
-                    {task.description}
-                  </Typography>
-                  {task.deadline && (
-                    <Typography variant="body2" color="text.secondary">
-                      Deadline: {new Date(task.deadline).toLocaleDateString()}
-                    </Typography>
+          {project.tasks && project.tasks.length > 0 ? (
+            <div className="tasks-list">
+              {project.tasks.map((task, index) => (
+                <div key={index} className="task-card">
+                  <div className="task-header">
+                    <h3>{task.title}</h3>
+                    <span 
+                      className="status-badge small"
+                      style={{ backgroundColor: getStatusColor(task.status) }}
+                    >
+                      {task.status.replace('_', ' ')}
+                    </span>
+                  </div>
+                  
+                  {task.description && (
+                    <p className="task-description">{task.description}</p>
                   )}
-                  <Box sx={{ mt: 2 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                      <Typography variant="body2">Progress</Typography>
-                      <Typography variant="body2">{task.progress}%</Typography>
-                    </Box>
-                    <LinearProgress
-                      variant="determinate"
-                      value={task.progress}
-                      color={task.progress === 100 ? 'success' : 'primary'}
-                    />
-                  </Box>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-      </Container>
 
-      {/* Add Task Dialog */}
-      <Dialog open={openTaskDialog} onClose={() => setOpenTaskDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Add New Task</DialogTitle>
-        <DialogContent>
-          <TextField
-            fullWidth
-            label="Task Title"
-            value={newTask.title}
-            onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-            margin="normal"
-          />
-          <TextField
-            fullWidth
-            label="Description"
-            value={newTask.description}
-            onChange={(e) =>
-              setNewTask({ ...newTask, description: e.target.value })
-            }
-            margin="normal"
-            multiline
-            rows={3}
-          />
-          <TextField
-            fullWidth
-            label="Deadline"
-            type="date"
-            value={newTask.deadline}
-            onChange={(e) =>
-              setNewTask({ ...newTask, deadline: e.target.value })
-            }
-            margin="normal"
-            InputLabelProps={{ shrink: true }}
-          />
-          <TextField
-            fullWidth
-            label="Progress"
-            type="number"
-            value={newTask.progress}
-            onChange={(e) =>
-              setNewTask({ ...newTask, progress: parseInt(e.target.value) })
-            }
-            margin="normal"
-            inputProps={{ min: 0, max: 100 }}
-          />
-          <TextField
-            fullWidth
-            select
-            label="Status"
-            value={newTask.status}
-            onChange={(e) => setNewTask({ ...newTask, status: e.target.value })}
-            margin="normal"
-          >
-            <MenuItem value="pending">Pending</MenuItem>
-            <MenuItem value="in_progress">In Progress</MenuItem>
-            <MenuItem value="completed">Completed</MenuItem>
-          </TextField>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenTaskDialog(false)}>Cancel</Button>
-          <Button onClick={handleAddTask} variant="contained">
-            Add Task
-          </Button>
-        </DialogActions>
-      </Dialog>
+                  <div className="task-details">
+                    {task.deadline && (
+                      <div className="task-detail">
+                        <strong>Deadline:</strong>
+                        <span>{new Date(task.deadline).toLocaleDateString()}</span>
+                      </div>
+                    )}
+                    
+                    <div className="task-progress">
+                      <div className="progress-header">
+                        <strong>Progress:</strong>
+                        <span>{task.progress || 0}%</span>
+                      </div>
+                      <div className="progress-bar">
+                        <div 
+                          className="progress-fill"
+                          style={{ width: `${task.progress || 0}%` }}
+                        />
+                      </div>
+                      {canEdit && (
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          value={task.progress || 0}
+                          onChange={(e) => handleUpdateTaskProgress(index, e.target.value)}
+                          className="progress-slider"
+                        />
+                      )}
+                    </div>
 
-      {/* Edit Project Dialog */}
-      <Dialog open={openEditDialog} onClose={() => setOpenEditDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Edit Project</DialogTitle>
-        <DialogContent>
-          <TextField
-            fullWidth
-            select
-            label="Status"
-            value={editData.status}
-            onChange={(e) => setEditData({ ...editData, status: e.target.value })}
-            margin="normal"
-          >
-            <MenuItem value="draft">Draft</MenuItem>
-            <MenuItem value="submitted">Submitted</MenuItem>
-            <MenuItem value="in_review">In Review</MenuItem>
-            <MenuItem value="approved">Approved</MenuItem>
-            <MenuItem value="rejected">Rejected</MenuItem>
-          </TextField>
-          {(user?.role === 'teacher' || user?.role === 'admin') && (
-            <>
-              <TextField
-                fullWidth
-                label="Grade (0-100)"
-                type="number"
-                value={editData.grade}
-                onChange={(e) =>
-                  setEditData({ ...editData, grade: parseInt(e.target.value) })
-                }
-                margin="normal"
-                inputProps={{ min: 0, max: 100 }}
-              />
-              <TextField
-                fullWidth
-                label="Feedback"
-                value={editData.feedback}
-                onChange={(e) =>
-                  setEditData({ ...editData, feedback: e.target.value })
-                }
-                margin="normal"
-                multiline
-                rows={4}
-              />
-            </>
+                    {canEdit && (
+                      <div className="task-actions">
+                        <select
+                          value={task.status}
+                          onChange={(e) => handleUpdateTaskStatus(index, e.target.value)}
+                          className="status-select"
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="in_progress">In Progress</option>
+                          <option value="completed">Completed</option>
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state">
+              <p>No tasks added yet. {canEdit && 'Add your first task!'}</p>
+            </div>
           )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenEditDialog(false)}>Cancel</Button>
-          <Button onClick={handleUpdateProject} variant="contained">
-            Update
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </>
+        </div>
+
+        {/* Files Section */}
+        <div className="files-section">
+          <h2>Files ({project.files?.length || 0})</h2>
+          
+          <form onSubmit={handleFileUpload} className="upload-form">
+            <input
+              type="file"
+              onChange={(e) => setUploadFile(e.target.files[0])}
+              accept=".pdf,.xml"
+            />
+            <button type="submit" className="btn-primary">Upload</button>
+          </form>
+
+          {project.files && project.files.length > 0 && (
+            <div className="files-list">
+              {project.files.map((file) => (
+                <div key={file._id} className="file-item">
+                  <span>📄 {file.originalName}</span>
+                  <a 
+                    href={`${api.defaults.baseURL.replace('/api', '')}/projects/${id}/files/${file._id}`}
+                    className="btn-download"
+                    download
+                  >
+                    Download
+                  </a>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* Add Task Modal */}
+      {showTaskModal && (
+        <div className="modal-overlay" onClick={() => setShowTaskModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Add New Task</h2>
+              <button onClick={() => setShowTaskModal(false)} className="btn-close">×</button>
+            </div>
+            
+            <form onSubmit={handleAddTask}>
+              <div className="form-group">
+                <label>Title *</label>
+                <input
+                  type="text"
+                  value={newTask.title}
+                  onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Description</label>
+                <textarea
+                  value={newTask.description}
+                  onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
+                  rows="3"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Deadline</label>
+                <input
+                  type="date"
+                  value={newTask.deadline}
+                  onChange={(e) => setNewTask({ ...newTask, deadline: e.target.value })}
+                />
+              </div>
+
+              <div className="modal-actions">
+                <button type="button" onClick={() => setShowTaskModal(false)} className="btn-secondary">
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary">
+                  Add Task
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Grade Modal */}
+      {showGradeModal && isTeacher && (
+        <div className="modal-overlay" onClick={() => setShowGradeModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Grade Project</h2>
+              <button onClick={() => setShowGradeModal(false)} className="btn-close">×</button>
+            </div>
+            
+            <form onSubmit={handleGradeProject}>
+              <div className="form-group">
+                <label>Grade (0-100) *</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={gradeData.grade}
+                  onChange={(e) => setGradeData({ ...gradeData, grade: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Feedback</label>
+                <textarea
+                  value={gradeData.feedback}
+                  onChange={(e) => setGradeData({ ...gradeData, feedback: e.target.value })}
+                  rows="4"
+                  placeholder="Provide feedback for the student..."
+                />
+              </div>
+
+              <div className="modal-actions">
+                <button type="button" onClick={() => setShowGradeModal(false)} className="btn-secondary">
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary">
+                  Submit Grade
+                </button>
+                {project.status === 'in_review' && (
+                  <button 
+                    type="button" 
+                    onClick={handleApproveProject}
+                    className="btn-success"
+                  >
+                    Approve Project
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 

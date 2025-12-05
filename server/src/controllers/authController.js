@@ -64,6 +64,11 @@ exports.register = async (req, res) => {
     });
   } catch (error) {
     console.error('Register error:', error);
+    // IMPROVEMENT: Handle Mongoose validation errors (e.g., password minlength)
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(val => val.message);
+      return res.status(400).json({ message: messages.join(', ') });
+    }
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
@@ -86,7 +91,7 @@ exports.login = async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // Check password
+    // Check password (THIS NOW WORKS DUE TO FIX IN User.js)
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid credentials' });
@@ -115,6 +120,8 @@ exports.login = async (req, res) => {
     });
   } catch (error) {
     console.error('Login error:', error);
+    // If the error is still a TypeError here, it means the model was not correctly loaded or the method is missing.
+    // The fix in User.js should resolve the 'comparePassword is not a function' error.
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
