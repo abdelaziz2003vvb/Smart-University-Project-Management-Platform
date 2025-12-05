@@ -720,6 +720,10 @@ For support, email support@smartuniversity.com or open an issue on GitHub.
 
 **Last Updated**: December 2025
 
+<<<<<<< HEAD
 ---
 
 **Made with ❤️ for education**
+=======
+---
+>>>>>>> bc1f9c42cc2d6f68d8c3e472c954ff4dc337f522
